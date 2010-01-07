@@ -43,9 +43,16 @@ module CloudProviders
     def bootstrap_chef!
       unless chef_bootstrapped?
         ssh([
+          'set -e -x',
           'apt-get update',
           'apt-get autoremove -y',
-          'apt-get install -y ruby ruby-dev rubygems git-core',
+          'apt-get install -y ruby ruby-dev rdoc ri git-core',
+          'cd /tmp',
+          'wget -q http://rubyforge.org/frs/download.php/60718/rubygems-1.3.5.tgz',
+          'tar zxf rubygems-1.3.5.tgz',
+          'cd rubygems-1.3.5',
+          'ruby setup.rb',
+          'ln -sfv /usr/bin/gem1.8 /usr/bin/gem',
           'gem sources -a http://gems.opscode.com',
           'gem install chef ohai --no-rdoc --no-ri'
         ])
@@ -53,11 +60,7 @@ module CloudProviders
     end
     
     def run_chef!
-      chef_solo_cmd = <<-CMD
-        GEM_BIN=$(gem env | grep "EXECUTABLE DIRECTORY" | awk "{print \\$4}") \
-        && $GEM_BIN/chef-solo -j /etc/chef/dna.json -c /etc/chef/solo.rb
-      CMD
-      ssh([chef_solo_cmd.strip.squeeze(' ')])
+      ssh(['chef-solo -j /etc/chef/dna.json -c /etc/chef/solo.rb'])
     end
         
     def run
