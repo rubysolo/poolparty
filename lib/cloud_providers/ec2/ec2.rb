@@ -123,9 +123,9 @@ module CloudProviders
       end
 
       unless rds_instances.empty?
-        rds_instances.each do |rdsi|
-          puts "    rds instance: #{rdsi.name}"
-          rdsi.run
+        rds_instances.each do |name, instance|
+          puts "    rds instance: #{name}"
+          instance.run
         end
       end
 
@@ -317,11 +317,7 @@ module CloudProviders
     end
 
     def rds(given_name=cloud.proper_name, o={}, &block)
-      rds_instances << RdsInstance.new(given_name, sub_opts.merge(o || {}), &block)
-    end
-
-    def available_rds_instances
-      rds_instances.select{|r| r.available? }
+      rds_instances[given_name] = RdsInstance.new(given_name, sub_opts.merge(o || {}), &block)
     end
 
     # Proxy to the raw Grempe amazon-aws @ec2 instance
@@ -367,8 +363,31 @@ module CloudProviders
     end
 
     def rds_instances
-      @rds_instances ||= []
+      @rds_instances ||= {}
     end
+
+    def ec2_rds_instances(reload=false)
+      @ec2_rds_instances = nil if reload
+      @ec2_rds_instances ||= begin
+        ec2_data = (awsrds.describe_db_instances.DescribeDBInstancesResult.DBInstances || {})['DBInstance'] || []
+        ec2_data = [ec2_data] unless ec2_data.is_a?(Array)
+        ec2_data.inject({}) {|hash, instance| hash.update(instance.DBInstanceIdentifier => instance) }
+      end
+    end
+
+    def available_rds_instances
+      ec2_rds_instances(true).select{|name, instance| instance.DBInstanceStatus == 'available' }.map{|name, instance| rds_instances[name] }.compact
+    end
+
+    def rds_db_host(instance_id)
+      instance_status = ec2_rds_instances[instance_id]
+      (instance_status && instance_status.DBInstanceStatus == 'available' && instance_status.Endpoint.Address) || 'pending-setup.local'
+    end
+
+    def rds_db_name(instance_id)
+      instance_id.to_s.gsub(/\-/, '_')
+    end
+
 
     # Clear the cache
     def reset!

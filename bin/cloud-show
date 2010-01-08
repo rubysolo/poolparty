@@ -40,7 +40,7 @@ EOS
       end
 
       if cld.rds_instances.size > 0
-        available = cld.cloud_provider.available_rds_instances.map{|r| "#{r.instance_id}\t#{r.current_status.Endpoint.Address}" }
+        available = cld.cloud_provider.available_rds_instances.map{|r| "#{r.instance_id}\t#{r.dns_name}" }
         available.unshift 'RDS Instances:'
 
         msg << available.join("\n\t\t\t")

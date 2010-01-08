@@ -34,7 +34,7 @@ module CloudProviders
     end
 
     def current_status
-      rds_instances.detect{|i| i.DBInstanceIdentifier == instance_id }
+      cloud.ec2_rds_instances[instance_id]
     end
 
     def exists?
@@ -47,6 +47,10 @@ module CloudProviders
 
     def instance_id
       name.to_s
+    end
+
+    def dns_name
+      exists? && current_status.Endpoint.Address
     end
 
   private
@@ -62,18 +66,12 @@ module CloudProviders
       raise "EC2 user id must be defined in ENV or config" if Ec2.default_user_id.nil?
     end
 
-    def rds_instances
-      @rds_instances ||= (rds.describe_db_instances.DescribeDBInstancesResult.DBInstances || {})['DBInstance'] || []
-      @rds_instances = [@rds_instances] unless @rds_instances.is_a?(Array)
-      @rds_instances
-    end
-
     def should_create_rds_instance?
       ! exists?
     end
 
     def create_rds_instance!
-      db_name = (databases.shift || instance_id).to_s.gsub(/\-/, '_')
+      db_name = (databases.shift || instance_id)
       params = {
         :db_instance_identifier => instance_id,
         :allocated_storage      => storage || 5,
@@ -81,7 +79,7 @@ module CloudProviders
         :engine                 => engine || "MySQL5.1",
         :master_username        => username,
         :master_user_password   => password,
-        :db_name                => db_name
+        :db_name                => cloud.rds_db_name(db_name)
       }
 
       # TODO : optional params : :port, :db_parameter_group, :db_security_groups, :availability_zone, :preferred_backup_window, :backend_retention_period

@@ -182,9 +182,9 @@ log_level         :info
         lb.teardown
       end
 
-      rds_instances.each do |rds|
-        puts "-----> Tearing down RDS Instance: #{rds.name}"
-        rds.teardown
+      rds_instances.each do |name, instance|
+        puts "-----> Tearing down RDS Instance: #{name}"
+        instance.teardown
       end
       # instances belonging to an auto_scaling group must be deleted before the auto_scaling group
       #THIS SCARES ME! nodes.each{|n| n.terminate_instance!}
